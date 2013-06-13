@@ -123,6 +123,7 @@ self.StreamReader = self.StreamReader || function() {
     }
     
     // Return the readAsArrayBuffer() method, but continue to process the steps in this algorithm.
+    var result = new ArrayBuffer(maxSize);
   }
 
   function readAsText(stream, encoding, maxSize) {
