@@ -48,7 +48,7 @@ self.StreamReader = self.StreamReader || function() {
 
   return StreamReader;
 
-  function StreamReader(contentType, thresholdLimit) {
+  function StreamReader() {
     this.readyState = 0;
   }
 
@@ -61,7 +61,7 @@ self.StreamReader = self.StreamReader || function() {
   }
 
   function readAsText(stream, encoding, maxSize) {
-
+    
   }
 
   function readAsDataURL(stream, maxSize) {
@@ -82,15 +82,31 @@ self.StreamBuilder = self.StreamBuilder || function() {
   return StreamBuilder;
 
   function StreamBuilder(contentType, thresholdLimit) {
-
+    this.stream = new Stream();
+    this.stream.type = contentType;
   }
 
   function append(data) {
-
+    if (this.stream._closed) {
+      throw new StreamError();
+    }
+    
+    if (data instanceof String) {
+      
+    }
+    else if (data instanceof Blob) {
+      
+    }
+    else if (data instanceof ArrayBuffer) {
+      
+    }
+    else {
+      throw new Error();
+    }
   }
 
   function close() {
-
+    this.stream.close();
   }
 
 }();
