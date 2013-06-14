@@ -7,7 +7,7 @@
  */
 
 
-self.StreamError = self.StreamError || function () {
+self['StreamError'] = self['StreamError'] || function () {
 
   return StreamError;
 
@@ -17,7 +17,7 @@ self.StreamError = self.StreamError || function () {
 
 }();
 
-self.Stream = self.Stream || function () {
+self['Stream'] = self['Stream'] || function () {
 
   Stream.prototype.close = close;
 
@@ -33,7 +33,7 @@ self.Stream = self.Stream || function () {
 
 }();
 
-self.StreamReader = self.StreamReader || function() {
+self['StreamReader'] = self['StreamReader'] || function() {
   Object.defineProperties(StreamReader, {
     "EMPTY": { value: 0 },
     "LOADING": { value: 1 },
@@ -57,41 +57,7 @@ self.StreamReader = self.StreamReader || function() {
    * @link http://www.w3.org/TR/streams-api/#widl-StreamReader-readAsBlob-void-Stream-stream-unsigned-long-long-maxSize
    */
   function readAsBlob(stream, maxSize) {
-    // If maxSize is less than one, through an Invalid Argument exception. Terminate these overall steps.
-    if (maxSize < 1) {
-      throw new Error("Invalid Argument");
-    }
-    // If readyState is LOADING, raise a NOT_ALLOWED_ERR exception and terminate these steps.
-    if (this.readyState === StreamReader.LOADING) {
-      throw new Error("NOT_ALLOWED_ERR");
-    }
     
-    // If an error occurs during reading the stream parameter, set readyState to DONE and set result to null. Proceed to the error steps below.
-    
-    // If no error has occurred, set readyState to LOADING.
-    this.readyState = StreamReader.LOADING;
-    
-    // Fire a progress event called loadstart.
-    if (this.onloadstart) {
-      this.onloadstart();
-    }
-    
-    // Make progress notifications.
-    
-    // Continue reading on the Stream:
-    // If the optional maxSize parameter has been set, set the readyState to DONE when the number of bytes read reaches MAX_SIZE or the stream has been fully read and the number of bytes is less than MAX_SIZE.
-    if (maxSize) {
-      
-    }
-    // If the optional parameter has not been set, set readyState to DONE when the stream has been fully read.
-    else {
-      
-    }
-    
-    // Set the result attribute to be stream’s data content represented as a Blob; on getting, the result result returns the (complete) data of stream as a Blob.
-    this.result = new Blob(data, { type: stream.type });
-
-    // Terminate this overall set of steps.
   }
 
   /**
@@ -126,7 +92,6 @@ self.StreamReader = self.StreamReader || function() {
     var self = this;
     setTimeout(function() {
       stream._get(maxSize, function(data) {
-        //console.log(data);
         self.result = new Uint8Array(data).buffer;
         self.readyState = StreamReader.DONE;
 
@@ -138,23 +103,11 @@ self.StreamReader = self.StreamReader || function() {
   }
 
   function readAsText(stream, encoding, maxSize) {
-    if (this.onloadstart) {
-      this.onloadstart();
-    }
-    this.result = stream._data;
-    if (!error && !aborted && this.onload) {
-      this.onload();
-    }
     
-    if (!aborted) {
-      
-    }
   }
 
   function readAsDataURL(stream, maxSize) {
-    if (this.onloadstart) {
-      this.onloadstart();
-    }
+    
   }
 
   /**
@@ -190,7 +143,7 @@ self.StreamReader = self.StreamReader || function() {
 
 }();
 
-self.StreamBuilder = self.StreamBuilder || function() {
+self['StreamBuilder'] = self['StreamBuilder'] || function() {
 
   StreamBuilder.prototype.append = append;
   StreamBuilder.prototype.close = close;
