@@ -123,16 +123,18 @@ self.StreamReader = self.StreamReader || function() {
     }
     
     // Return the readAsArrayBuffer() method, but continue to process the steps in this algorithm.
-    var result = new ArrayBuffer(maxSize), self = this;
-    stream._get(maxSize, function(data) {
-      console.log(data);
-      self.result = new Uint8Array(data).buffer;
-      self.readyState = StreamReader.DONE;
+    var self = this;
+    setTimeout(function() {
+      stream._get(maxSize, function(data) {
+        //console.log(data);
+        self.result = new Uint8Array(data).buffer;
+        self.readyState = StreamReader.DONE;
 
-      if (self.onload) {
-        self.onload();
-      }
-    });
+        if (self.onload) {
+          self.onload();
+        }
+      });
+    }, 1);
   }
 
   function readAsText(stream, encoding, maxSize) {
@@ -200,6 +202,8 @@ self.StreamBuilder = self.StreamBuilder || function() {
   }
 
   function StreamBuilder(contentType, thresholdLimit) {
+    this.availableDataSize = 0;
+
     this.stream = new Stream();
     this.stream.type = contentType;
     
@@ -209,7 +213,7 @@ self.StreamBuilder = self.StreamBuilder || function() {
     // http://www.w3.org/TR/streams-api/#reads-on-a-stream-from-streambuilder
     this.stream._get = function(size, callback) {
       // If there is enough data available to satisfy the amount requested in the read, return the amount specified. The data should be returned in the order the data was appended.
-      if (this._builder.availableDataSize >= size) {
+      if (this._builder.availableDataSize >= size) {console.log('enough data');
         // Update the value of availableDataSize.
         this._builder.availableDataSize -= size;
         callback(this._data.splice(0, size));
@@ -217,7 +221,7 @@ self.StreamBuilder = self.StreamBuilder || function() {
       // If there is not enough data available to satisfy the amount requested in the read:
       else if (2) {
         // If the Stream has been closed, return all the data available, and set availableDataSize to zero.
-        if (this._closed) {
+        if (this._closed) {console.log('stream closed');
           this._builder.availableDataSize = 0;
           callback(this._data.splice(0, this._data.length));
         }
@@ -228,12 +232,12 @@ self.StreamBuilder = self.StreamBuilder || function() {
             do {
               ads = this._builder.availableDataSize;
               this._builder.onthresholdreached();
-              if (this._builder.availableDataSize == ads) {
+              if (this._builder.availableDataSize == ads) {console.log('closed stream');
                 this.close();
               }
             }
             while(!this._closed && this._builder.availableDataSize < size);
-            
+            //console.log('data', this._builder.availableDataSize, this._data);
             this._builder.availableDataSize -= size;
             callback(this._data.splice(0, size));
           }
