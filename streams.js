@@ -49,7 +49,7 @@ self.StreamReader = self.StreamReader || function() {
   return StreamReader;
 
   function StreamReader() {
-    this.readyState = 0;
+    this.readyState = StreamReader.EMPTY;
   }
 
   /**
@@ -123,7 +123,16 @@ self.StreamReader = self.StreamReader || function() {
     }
     
     // Return the readAsArrayBuffer() method, but continue to process the steps in this algorithm.
-    var result = new ArrayBuffer(maxSize);
+    var result = new ArrayBuffer(maxSize), self = this;
+    stream._get(maxSize, function(data) {
+      console.log(data);
+      self.result = new Uint8Array(data).buffer;
+      self.readyState = StreamReader.DONE;
+
+      if (self.onload) {
+        self.onload();
+      }
+    });
   }
 
   function readAsText(stream, encoding, maxSize) {
@@ -185,29 +194,79 @@ self.StreamBuilder = self.StreamBuilder || function() {
   StreamBuilder.prototype.close = close;
 
   return StreamBuilder;
+  
+  function StreamBuilderStream() {
+    
+  }
 
   function StreamBuilder(contentType, thresholdLimit) {
     this.stream = new Stream();
     this.stream.type = contentType;
+    
+    this.stream._builder = this;
+    this.stream._data = [];
+    
+    // http://www.w3.org/TR/streams-api/#reads-on-a-stream-from-streambuilder
+    this.stream._get = function(size, callback) {
+      // If there is enough data available to satisfy the amount requested in the read, return the amount specified. The data should be returned in the order the data was appended.
+      if (this._builder.availableDataSize >= size) {
+        // Update the value of availableDataSize.
+        this._builder.availableDataSize -= size;
+        callback(this._data.splice(0, size));
+      }
+      // If there is not enough data available to satisfy the amount requested in the read:
+      else if (2) {
+        // If the Stream has been closed, return all the data available, and set availableDataSize to zero.
+        if (this._closed) {
+          this._builder.availableDataSize = 0;
+          callback(this._data.splice(0, this._data.length));
+        }
+        // Else, keep the request pending and do not return until there is enough data available to satisfy the requset.
+        else {
+          if (this._builder.onthresholdreached) {
+            var ads;
+            do {
+              ads = this._builder.availableDataSize;
+              this._builder.onthresholdreached();
+              if (this._builder.availableDataSize == ads) {
+                this.close();
+              }
+            }
+            while(!this._closed && this._builder.availableDataSize < size);
+            
+            this._builder.availableDataSize -= size;
+            callback(this._data.splice(0, size));
+          }
+        }
+      }
+    };
   }
 
   function append(data) {
+    var i;
+
     if (this.stream._closed) {
       throw new StreamError();
     }
     
-    if (data instanceof String) {
-      this.stream._data.push(data);
+    if (typeof data == 'string' || data instanceof String) {
+      for (i = 0; i < data.length; ++i) {
+        this.stream._data.push(data.charCodeAt(i));
+      }
     }
     else if (data instanceof Blob) {
       
     }
     else if (data instanceof ArrayBuffer) {
-      
+      var view = new Uint8Array(data);
+      for (i = 0; i < view.length; i++) {
+        this.stream._data.push(view[i]);
+      }
     }
     else {
       throw new Error();
     }
+    this.availableDataSize = this.stream._data.length;
   }
 
   function close() {
