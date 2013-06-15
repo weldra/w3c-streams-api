@@ -5,7 +5,9 @@ Polyfill or shim for the [Streams API](http://www.w3.org/TR/streams-api/).
 
 ## Example
 
-    var builder, reader, i = 0;
+Building a stream using `StreamBuilder`.
+
+    var builder, i = 0;
 
     builder = new StreamBuilder("text/plain", 1024);
     builder.onthresholdreached = function() {
@@ -24,7 +26,11 @@ Polyfill or shim for the [Streams API](http://www.w3.org/TR/streams-api/).
         builder.close();
       }
     };
-      
+
+Reading a stream using `StreamReader`.
+
+    var reader;
+    
     reader = new StreamReader();
     reader.onprogress = function() {
       debug('reader.onprogress');
