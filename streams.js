@@ -6,7 +6,6 @@
  * @link http://www.w3.org/TR/streams-api/
  */
 
-
 self['StreamError'] = self['StreamError'] || function () {
 
   return StreamError;
@@ -24,9 +23,14 @@ self['Stream'] = self['Stream'] || function () {
   return Stream;
 
   function Stream() {
-
+    this.type = "";
   }
 
+  /**
+   * Closes the stream.
+   *
+   * This method should close the Stream and not allow any future reads. This is done by returning on the next and subsequent reads with no data. This is an irreversible and non-idempotent operation; once a Stream has been closed, it cannot be used again; dereferencing a Stream URI bound to a Stream object on which close has been called results in a 500 Error.
+   */
   function close() {
     this._closed = true;
   }
@@ -39,7 +43,7 @@ self['StreamReader'] = self['StreamReader'] || function() {
     "LOADING": { value: 1 },
     "DONE": { value: 2 }
   });
-
+  
   StreamReader.prototype.readAsBlob = readAsBlob;
   StreamReader.prototype.readAsArrayBuffer = readAsArrayBuffer;
   StreamReader.prototype.readAsText = readAsText;
@@ -50,6 +54,15 @@ self['StreamReader'] = self['StreamReader'] || function() {
 
   function StreamReader() {
     this.readyState = StreamReader.EMPTY;
+    this.result = null;
+    this.error = null;
+    
+    this.onloadstart = null;
+    this.onprogress = null;
+    this.onload = null;
+    this.onabort = null;
+    this.onerror = null;
+    this.onloadend = null;
   }
 
   /**
@@ -66,6 +79,8 @@ self['StreamReader'] = self['StreamReader'] || function() {
    * @link http://www.w3.org/TR/FileAPI/#readAsArrayBuffer
    */
   function readAsArrayBuffer(stream, maxSize) {
+    var event;
+
     // If maxSize is less than one, throw an Invalid Argument exception. Terminate these overall steps.
     if (maxSize < 1) {
       throw new Error("Invalid Argument");
@@ -84,20 +99,22 @@ self['StreamReader'] = self['StreamReader'] || function() {
     this.readyState = StreamReader.LOADING;
     
     // Fire a progress event called loadstart.
-    if (this.onloadstart) {
-      this.onloadstart();
-    }
+    if (this.onloadstart) this.onloadstart(event = new ProgressEvent('loadstart'), event.target = this, event);
     
     // Return the readAsArrayBuffer() method, but continue to process the steps in this algorithm.
     var self = this;
     setTimeout(function() {
-      stream._get(maxSize, function(data) {
+      stream._read(maxSize, function(data) {
         self.result = new Uint8Array(data).buffer;
+
+        // Set readyState to DONE.
         self.readyState = StreamReader.DONE;
 
-        if (self.onload) {
-          self.onload();
-        }
+        // Fire a progress event called load.
+        if (self.onload) self.onload(event = new ProgressEvent('load'), event.target = self, event);
+        
+        // Fire a progress event called loadend.
+        if (self.onloadend) self.onloadend(event = new ProgressEvent('loadend'), event.target = self, event);
       });
     }, 1);
   }
@@ -144,6 +161,9 @@ self['StreamReader'] = self['StreamReader'] || function() {
 }();
 
 self['StreamBuilder'] = self['StreamBuilder'] || function() {
+  
+  StreamBuilderStream.prototype = Object.create(Stream.prototype);
+  StreamBuilderStream.prototype._read = _read;
 
   StreamBuilder.prototype.append = append;
   StreamBuilder.prototype.close = close;
@@ -151,52 +171,52 @@ self['StreamBuilder'] = self['StreamBuilder'] || function() {
   return StreamBuilder;
   
   function StreamBuilderStream() {
-    
+    this._data = [];
+  }
+  
+  // http://www.w3.org/TR/streams-api/#reads-on-a-stream-from-streambuilder
+  function _read(size, callback) {
+    // If there is enough data available to satisfy the amount requested in the read, return the amount specified. The data should be returned in the order the data was appended.
+    if (this._builder.availableDataSize >= size) {
+      // Update the value of availableDataSize.
+      this._builder.availableDataSize -= size;
+      callback(this._data.splice(0, size));
+    }
+    // If there is not enough data available to satisfy the amount requested in the read:
+    else if (2) {
+      // If the Stream has been closed, return all the data available, and set availableDataSize to zero.
+      if (this._closed) {
+        this._builder.availableDataSize = 0;
+        callback(this._data.splice(0, this._data.length));
+      }
+      // Else, keep the request pending and do not return until there is enough data available to satisfy the requset.
+      else {
+        if (this._builder.onthresholdreached) {
+          var ads;
+          do {
+            ads = this._builder.availableDataSize;
+            this._builder.onthresholdreached();
+            // TODO this is not according to spec!
+            if (this._builder.availableDataSize == ads) {
+              this.close();
+            }
+          }
+          while(!this._closed && this._builder.availableDataSize < size);
+          //console.log('data', this._builder.availableDataSize, this._data);
+          this._builder.availableDataSize -= size;
+          callback(this._data.splice(0, size));
+        }
+      }
+    }
   }
 
   function StreamBuilder(contentType, thresholdLimit) {
     this.availableDataSize = 0;
 
-    this.stream = new Stream();
+    this.stream = new StreamBuilderStream();
     this.stream.type = contentType;
     
     this.stream._builder = this;
-    this.stream._data = [];
-    
-    // http://www.w3.org/TR/streams-api/#reads-on-a-stream-from-streambuilder
-    this.stream._get = function(size, callback) {
-      // If there is enough data available to satisfy the amount requested in the read, return the amount specified. The data should be returned in the order the data was appended.
-      if (this._builder.availableDataSize >= size) {console.log('enough data');
-        // Update the value of availableDataSize.
-        this._builder.availableDataSize -= size;
-        callback(this._data.splice(0, size));
-      }
-      // If there is not enough data available to satisfy the amount requested in the read:
-      else if (2) {
-        // If the Stream has been closed, return all the data available, and set availableDataSize to zero.
-        if (this._closed) {console.log('stream closed');
-          this._builder.availableDataSize = 0;
-          callback(this._data.splice(0, this._data.length));
-        }
-        // Else, keep the request pending and do not return until there is enough data available to satisfy the requset.
-        else {
-          if (this._builder.onthresholdreached) {
-            var ads;
-            do {
-              ads = this._builder.availableDataSize;
-              this._builder.onthresholdreached();
-              if (this._builder.availableDataSize == ads) {console.log('closed stream');
-                this.close();
-              }
-            }
-            while(!this._closed && this._builder.availableDataSize < size);
-            //console.log('data', this._builder.availableDataSize, this._data);
-            this._builder.availableDataSize -= size;
-            callback(this._data.splice(0, size));
-          }
-        }
-      }
-    };
   }
 
   function append(data) {
